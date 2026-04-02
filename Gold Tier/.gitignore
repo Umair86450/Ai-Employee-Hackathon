@@ -1,0 +1,53 @@
+# OS / Python
+.DS_Store
+__pycache__/
+*.py[oc]
+
+# Secrets
+.env
+*.env
+AI_Employee_Vault/credentials.json
+AI_Employee_Vault/token.json
+client_secret_*.json
+
+# Local user config
+.silver_orchestrator_state.json
+.gold_orchestrator_state.json
+.ralph_loop_state.json
+.linkedin_storage_state.json
+
+# Runtime logs
+AI_Employee_Vault/Logs/*
+!AI_Employee_Vault/Logs/.gitkeep
+
+# Runtime vault queues
+AI_Employee_Vault/Inbox/*
+!AI_Employee_Vault/Inbox/.gitkeep
+AI_Employee_Vault/Needs_Action/*
+!AI_Employee_Vault/Needs_Action/.gitkeep
+AI_Employee_Vault/Done/*
+!AI_Employee_Vault/Done/.gitkeep
+AI_Employee_Vault/Plans/*
+!AI_Employee_Vault/Plans/.gitkeep
+AI_Employee_Vault/Pending_Approval/*
+!AI_Employee_Vault/Pending_Approval/.gitkeep
+AI_Employee_Vault/Approved/*
+!AI_Employee_Vault/Approved/.gitkeep
+AI_Employee_Vault/Queued/*
+!AI_Employee_Vault/Queued/.gitkeep
+AI_Employee_Vault/Rejected/*
+!AI_Employee_Vault/Rejected/.gitkeep
+AI_Employee_Vault/Briefings/*
+!AI_Employee_Vault/Briefings/.gitkeep
+
+# Generated summaries
+Social_Summary/*
+!Social_Summary/.gitkeep
+
+# WhatsApp session data
+whatsapp_session/
+
+# Local Odoo runtime data
+odoo19-local/postgres-data/
+odoo19-local/odoo-data/filestore/
+odoo19-local/odoo-data/sessions/
