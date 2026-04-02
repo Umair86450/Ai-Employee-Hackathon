@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "email_mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "mcp_servers/email_mcp.py"
+      ]
+    },
+    "linkedin_mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "mcp_servers/linkedin_mcp.py"
+      ]
+    },
+    "browser_mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "mcp_servers/linkedin_mcp.py"
+      ]
+    },
+    "payment_mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "mcp_servers/payment_mcp.py"
+      ]
+    }
+  }
+}

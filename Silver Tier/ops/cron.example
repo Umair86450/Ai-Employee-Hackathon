@@ -1,0 +1,8 @@
+# Silver Tier scheduler example
+# Edit with `crontab -e` and replace /ABS/PATH/TO/Silver\ Tier with your project path.
+
+# Run one Silver orchestration cycle every 5 minutes.
+*/5 * * * * cd /ABS/PATH/TO/Silver\ Tier && uv run orchestrator.py --project-root . --once >> AI_Employee_Vault/Logs/cron_orchestrator.log 2>&1
+
+# Refresh dashboard and create daily LinkedIn draft/approval each morning.
+0 9 * * * cd /ABS/PATH/TO/Silver\ Tier && ./daily_briefing.sh >> AI_Employee_Vault/Logs/cron_daily.log 2>&1
