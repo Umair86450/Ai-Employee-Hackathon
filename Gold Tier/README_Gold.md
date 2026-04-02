@@ -1,142 +1,95 @@
-# Gold Tier Autonomous Employee
+# Gold Tier Autonomous Employee (Non-Technical Guide)
 
-Gold Tier extends the Silver runtime into a cross-domain autonomous employee that can ingest personal work from Gmail/WhatsApp, route business work into Odoo and social channels, stop at approval boundaries, recover from transient failures, and produce weekly CEO briefings.
+This repo delivers the **Gold Tier** self-driving employee. It watches Gmail/WhatsApp/files, turns customer work into Odoo invoices, routes approval-gated emails/social posts, logs every action, and produces a weekly CEO briefing. Everything you need is under `AI_Employee_Vault/` and the skills folder; no coding is required to run it once the environment is prepared.
 
-## Scope
+## What’s here
+- `AI_Employee_Vault/` – live state, approvals, logs, plans, briefings.
+- `watchers/` – Gmail, WhatsApp, filesystem monitors that drop tasks into the vault.
+- `orchestrator.py` + `ralph_loop.py` – the brain that reads tasks, makes plans, and creates approvals.
+- `watchers/hitl_orchestrator.py` + `mcp_servers/` – execute approved external actions (Odoo, email, browser automation).
+- `weekly_ceo_briefing.sh` – runs the CEO audit skill every Friday night.
+- `.agents/skills/` – every action (email, invoice, social post) is defined as a reusable skill you can trigger.
 
-- Personal domain:
-  - Gmail watcher
-  - WhatsApp watcher
-  - `Needs_Action` intake and Ralph-loop processing
-- Business domain:
-  - Odoo 19 via `odoo_mcp`
-  - email via `email_mcp`
-  - Facebook / Instagram / X post workflows
-  - weekly CEO audit briefing
-- Control plane:
-  - `orchestrator.py`
-  - `watchers/hitl_orchestrator.py`
-  - `ralph_loop.py`
-  - `watchdog.py`
+## Preparation (one-time)
+1. Open a terminal inside this folder:
+   ```bash
+   cd "/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier"
+   ```
+2. Install shared tooling:
+   ```bash
+   uv sync
+   uv run playwright install chromium
+   ```
+3. Create a `.env` file (copy `.env.example`) and add your credentials (Odoo URL/API key, SMTP, social accounts). Do **not** commit this file.
+4. Start the local Odoo stack:
+   ```bash
+   cd odoo19-local
+   ./manage.sh up
+   ```
+   Wait a minute until the web container is healthy. Use `./manage.sh logs` to watch startup. Return to the root folder when ready.
+5. Verify `.env` has `ODOO_URL`, `ODOO_DB`, `ODOO_API_KEY`, and any email or social credentials you plan to use.
 
-## Architecture
+## Run the Gold employee (daily)
+1. Start the supervisor that runs all watchers:
+   ```bash
+   UV_CACHE_DIR=/tmp/uv-cache uv run python watchdog.py --project-root .
+   ```
+   Leave this terminal open; it will restart services if they crash.
+2. In another terminal, list active files:
+   ```bash
+   UV_CACHE_DIR=/tmp/uv-cache uv run python main.py --status
+   ```
+3. If you need to inject a manual request (for testing), create a markdown file:
+   ```bash
+   cat <<'EOF' > AI_Employee_Vault/Needs_Action/REQUEST.md
+   # Client request
+   Please create an Odoo invoice for ABC Traders, email it, and draft an X update.
+   EOF
+   ```
+4. Check `AI_Employee_Vault/Pending_Approval/` – each sensitive action (email, Odoo, social) waits for your approval before execution.
+5. Approve an action by moving the file to `/Approved/`:
+   ```bash
+   mv AI_Employee_Vault/Pending_Approval/APPROVAL_*.md AI_Employee_Vault/Approved/
+   UV_CACHE_DIR=/tmp/uv-cache uv run python watchers/hitl_orchestrator.py --vault AI_Employee_Vault --process-once
+   ```
+   Logs and the approval file will record success or failure. If the MCP server fails due to Odoo being down, the approval moves into `AI_Employee_Vault/Queued/` for retry later.
 
-```mermaid
-flowchart TD
-    Gmail[Gmail Watcher] --> Needs[AI_Employee_Vault/Needs_Action]
-    WhatsApp[WhatsApp Watcher] --> Needs
-    Inbox[Filesystem Watcher] --> Needs
+## Weekly and recurring tasks
+- Add the following cron entries (use `crontab -e`, replace `/ABS/PATH/TO/Silver Tier`):
+  ```cron
+  */5 * * * * cd /ABS/PATH/TO/Silver\ Tier && uv run orchestrator.py --project-root . --once >> AI_Employee_Vault/Logs/cron_orchestrator.log 2>&1
+  0 22 * * 5 cd /ABS/PATH/TO/Silver\ Tier && ./weekly_ceo_briefing.sh >> AI_Employee_Vault/Logs/cron_weekly_ceo.log 2>&1
+  ```
+- Weekly CEO briefing attaches finance insights in `AI_Employee_Vault/Briefings/` and updates `AI_Employee_Vault/Dashboard.md`.
 
-    Needs --> Orchestrator[Gold Orchestrator]
-    Orchestrator --> Ralph[Ralph Loop]
-    Ralph --> Pending[Pending_Approval]
-    Ralph --> Done[Done]
+## Key folders you will use
+- `AI_Employee_Vault/Needs_Action/` – incoming tasks from Gmail/WhatsApp or manual copies.
+- `AI_Employee_Vault/Pending_Approval/` – approval requests await human review.
+- `AI_Employee_Vault/Approved/` – once approved, actions get executed and logged.
+- `AI_Employee_Vault/Logs/` – daily HTTPS-style log file plus JSON audit entries for MCP calls.
+- `AI_Employee_Vault/Briefings/` – contains the latest CEO briefing and archives.
+- `AI_Employee_Vault/Queued/` – failed/Odoo-unavailable approvals that will retry when you move them back to `Approved`.
 
-    Pending -->|human move| Approved[Approved]
-    Approved --> HITL[HITL Orchestrator]
+## Testing
+- Unit tests:
+  ```bash
+  python3 -m unittest discover -s tests
+  ```
+- End-to-end demo:
+  ```bash
+  python3 test_gold.py
+  ```
+  These commands run without any real network writes (external flows are stubbed), so they are safe for verification.
 
-    HITL --> Odoo[odoo_mcp]
-    HITL --> Email[email_mcp]
-    HITL --> Browser[browser_mcp]
-    HITL --> Queue[Queued]
+## Troubleshooting
+- **Approval stuck in Pending:** Move it to `Approved/` once you verify the action details, then trigger `watchers/hitl_orchestrator.py`.
+- **Odoo unreachable:** Check `odoo19-local/manage.sh logs` and restart `./manage.sh up`. Any approval that hit Odoo gets copied into `AI_Employee_Vault/Queued/`; move it back to `Approved/` after the service recovers.
+- **Emails or social posts fail in MCP:** Check the inline JSON in the approval file, fix credentials in `.env`, and rerun the approved file.
+- **Dashboard stale:** Run `UV_CACHE_DIR=/tmp/uv-cache uv run python main.py --update-dash`.
 
-    Browser --> Social[FB / IG / X Summaries]
-    Odoo --> Briefing[Weekly CEO Briefing]
-    Done --> Briefing
-    Logs[Logs md/json] --> Briefing
+## Notes
+- All AI logic lives in `.agents/skills/`. To add new capabilities, drop a new skill file and update the orchestrator references.
+- Every sensitive action writes a markdown approval plus a JSON audit entry (`AI_Employee_Vault/Logs/<date>.json`) for traceability.
+- Keep `.env` secret; do not commit it. The GitHub push already excludes runtime data (vault logs, approvals, Social_Summary entries, Odoo database files, WhatsApp session, etc.).
 
-    Watchdog[watchdog.py] --> Gmail
-    Watchdog --> WhatsApp
-    Watchdog --> Orchestrator
-    Watchdog --> HITL
-    Watchdog --> Ralph
-```
-
-## Runtime Flow
-
-1. Personal requests arrive through Gmail or WhatsApp watchers and become markdown tasks in `AI_Employee_Vault/Needs_Action/`.
-2. `orchestrator.py` bootstraps planning context and runs the Ralph loop first for multi-step autonomy.
-3. Ralph loop identifies the next best action, creates approvals for sensitive external work, and moves completed source tasks into `Done/`.
-4. The owner approves by moving `APPROVAL_*.md` files into `AI_Employee_Vault/Approved/`.
-5. `watchers/hitl_orchestrator.py` executes MCP tools with retry handling and JSON audit logging.
-6. If Odoo is transiently unavailable, approvals move into `AI_Employee_Vault/Queued/` for later replay.
-7. Weekly social drafts and the CEO briefing are generated by the Gold orchestrator on schedule or by force flags.
-
-## Key Files
-
-- [orchestrator.py](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/orchestrator.py)
-- [ralph_loop.py](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/ralph_loop.py)
-- [watchers/hitl_orchestrator.py](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/watchers/hitl_orchestrator.py)
-- [watchdog.py](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/watchdog.py)
-- [mcp_servers/odoo_mcp.py](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/mcp_servers/odoo_mcp.py)
-- [mcp_servers/browser_mcp.py](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/mcp_servers/browser_mcp.py)
-- [weekly_ceo_briefing.sh](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/weekly_ceo_briefing.sh)
-- [test_gold.py](/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier/test_gold.py)
-
-## Commands
-
-Start the supervised Gold runtime:
-
-```bash
-cd "/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier"
-uv run python watchdog.py --project-root .
-```
-
-Run one orchestrator pass:
-
-```bash
-cd "/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier"
-uv run python orchestrator.py --project-root . --once
-```
-
-Force weekly audit and X generation:
-
-```bash
-cd "/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier"
-uv run python orchestrator.py --project-root . --once --force-weekly-audit --force-twitter
-```
-
-Replay queued Odoo approvals after recovery:
-
-```bash
-cd "/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier"
-mv AI_Employee_Vault/Queued/APPROVAL_*.md AI_Employee_Vault/Approved/ 2>/dev/null || true
-UV_CACHE_DIR=/tmp/uv-cache uv run python watchers/hitl_orchestrator.py --vault AI_Employee_Vault --process-once
-```
-
-Run the Gold test harness:
-
-```bash
-cd "/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier"
-python3 test_gold.py
-```
-
-Run the full unit test suite:
-
-```bash
-cd "/Users/mac/Desktop/P/Silver Tier/Ai-Employee-Hackathon/Gold Tier"
-python3 -m unittest discover -s tests
-```
-
-## Lessons Learned
-
-- File-based approvals are simpler to audit than in-memory task state.
-- Ralph loop autonomy works best when it stops at explicit human approval boundaries.
-- MCP execution needs structured JSON logs, not just markdown notes, for submission-grade traceability.
-- Odoo downtime should degrade into a queue, not a rejection, because accounting actions are often retriable.
-- MCP subprocesses must receive the same `.env` configuration as direct shell runs, otherwise approved actions become flaky.
-- A process watchdog is necessary once the system spans Gmail, WhatsApp, Odoo, social, HITL, and weekly reporting.
-- Deterministic integration tests are easier to trust when external calls are stubbed but vault side effects remain real.
-
-## Submission Checklist
-
-- [ ] `ODOO_URL`, `ODOO_DB`, and `ODOO_API_KEY` are set in `.env`
-- [ ] social credentials are configured if real FB / IG / X publish is required
-- [ ] `uv run playwright install chromium` has been run
-- [ ] `uv run python watchdog.py --project-root .` starts cleanly
-- [ ] `python3 -m unittest discover -s tests` passes
-- [ ] `python3 test_gold.py` passes
-- [ ] `AI_Employee_Vault/Logs/<today>.json` shows MCP audit entries
-- [ ] `AI_Employee_Vault/Dashboard.md` is refreshed
-- [ ] `AI_Employee_Vault/Briefings/` contains a CEO briefing sample
-- [ ] pending approvals are visible and human-reviewable
+Need help with a flaky approval or social publish? Start with `AI_Employee_Vault/Logs/<today>.md` and work backwards from the MCP audit JSON file.
