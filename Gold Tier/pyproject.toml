@@ -1,0 +1,25 @@
+[project]
+name = "silver-tier"
+version = "0.1.0"
+description = "Personal AI Employee - Silver Tier"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "watchdog>=4.0.0",
+    "python-dotenv>=1.0.0",
+    "playwright>=1.58.0",
+    "mcp>=1.26.0",
+    "google-api-python-client>=2.170.0",
+    "google-auth>=2.40.0",
+    "google-auth-oauthlib>=1.2.2",
+]
+
+[project.scripts]
+ai-employee = "main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["watchers"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

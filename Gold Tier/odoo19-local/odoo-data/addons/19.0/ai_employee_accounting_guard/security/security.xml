@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_accounting_no_delete" model="res.groups">
+        <field name="name">Accounting No Delete</field>
+        <field name="comment">Blocks delete operations on accounting, partner, and product records.</field>
+    </record>
+</odoo>
