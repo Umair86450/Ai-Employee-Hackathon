@@ -9,6 +9,163 @@ This repo is for the Silver Tier workflow:
 - LinkedIn drafting/post flow
 - email MCP execution
 
+## Simple Guide For Non-Technical Users
+
+If you are not technical, follow only this section first.
+
+### What this app does
+This app watches a few places and turns incoming work into organized files:
+- files dropped into `AI_Employee_Vault/Inbox/`
+- Gmail messages
+- WhatsApp messages
+
+Then it:
+- creates task files
+- prepares plans
+- asks for approval before sensitive actions
+- updates the dashboard
+
+### Before you start
+You only need 3 things:
+1. Python/`uv` installed on your Mac
+2. this project folder opened in Terminal
+3. your own credentials for Gmail, LinkedIn, or WhatsApp if you want those features
+
+### Very important: local-only files
+Some files must stay only on your computer and should never be uploaded to GitHub.
+
+These are local-only files mentioned in `.gitignore`:
+- `.env`
+- `.linkedin_storage_state.json`
+- `AI_Employee_Vault/credentials.json`
+- `AI_Employee_Vault/token.json`
+- `client_secret_*.json`
+- `whatsapp_session/`
+- `.silver_orchestrator_state.json`
+
+Also, runtime folders such as these should stay local:
+- `AI_Employee_Vault/Inbox/`
+- `AI_Employee_Vault/Needs_Action/`
+- `AI_Employee_Vault/Done/`
+- `AI_Employee_Vault/Plans/`
+- `AI_Employee_Vault/Pending_Approval/`
+- `AI_Employee_Vault/Approved/`
+- `AI_Employee_Vault/Rejected/`
+- `AI_Employee_Vault/Logs/`
+
+Meaning:
+- use your own Gmail and LinkedIn credentials
+- keep tokens and session files on your own machine
+- do not copy these files into GitHub
+
+### First-time setup
+Open Terminal inside the `Silver Tier` folder and run:
+
+```bash
+uv sync
+uv run playwright install chromium
+```
+
+### Add your own credentials
+
+#### 1. Email and LinkedIn
+Create a local file named `.env` in the `Silver Tier` folder.
+
+Use this example:
+
+```env
+EMAIL_SMTP_USERNAME=your_email@gmail.com
+EMAIL_SMTP_PASSWORD=your_app_password
+EMAIL_FROM=your_email@gmail.com
+
+LINKEDIN_EMAIL=your_linkedin_email
+LINKEDIN_PASSWORD=your_linkedin_password
+LINKEDIN_HEADLESS=false
+```
+
+Use your own values only.
+
+#### 2. Gmail API file
+If you want Gmail watcher, place your Google OAuth file here:
+
+```text
+AI_Employee_Vault/credentials.json
+```
+
+On first Gmail login, the app will create:
+
+```text
+AI_Employee_Vault/token.json
+```
+
+That token is your local Gmail access token. Keep it private.
+
+#### 3. WhatsApp login
+If you want WhatsApp watcher:
+- run the watcher once
+- a browser will open
+- scan the QR code from your phone
+
+The login session is saved in:
+
+```text
+whatsapp_session/
+```
+
+Keep that folder private.
+
+### Safest commands to use
+
+#### Check status only
+This does not start automation. It only shows current counts.
+
+```bash
+uv run main.py --status
+```
+
+#### Start the full app
+This starts all enabled services.
+
+```bash
+uv run main.py
+```
+
+This can:
+- read Gmail
+- read WhatsApp
+- create task files
+- create approval requests
+- update dashboard and logs
+
+#### Start without WhatsApp
+Use this if WhatsApp is not linked yet.
+
+```bash
+uv run main.py --no-whatsapp
+```
+
+#### Start without Gmail
+Use this if you do not want Gmail connected yet.
+
+```bash
+uv run main.py --no-gmail
+```
+
+### What to do after app starts
+- Open `AI_Employee_Vault/Dashboard.md` to see current status
+- Check `AI_Employee_Vault/Pending_Approval/` for actions waiting for approval
+- Put files into `AI_Employee_Vault/Inbox/` if you want to test file processing
+
+### If something goes wrong
+- If Gmail does not work, check `AI_Employee_Vault/credentials.json`
+- If Gmail asks again, it may recreate `AI_Employee_Vault/token.json`
+- If WhatsApp says session expired, delete `whatsapp_session/` and log in again
+- If you want a safe check, always use:
+
+```bash
+uv run main.py --status
+```
+
 ## What This Project Does
 End-to-end flow:
 
